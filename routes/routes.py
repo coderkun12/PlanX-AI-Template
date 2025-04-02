@@ -40,7 +40,7 @@ def check_auth():
         session.pop('jwt_token', None)
     return jsonify(result), status_code
 
-@routes_bp.route("/api/sessions/<session_id/messages",methods=["POST"])
+@routes_bp.route("/api/sessions/<session_id>/messages",methods=["POST"])
 def send_message():
     qa=generate_message(JWT_SECRET)
     return qa 
