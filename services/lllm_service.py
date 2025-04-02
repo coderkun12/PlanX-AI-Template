@@ -41,11 +41,11 @@ def run_langgraph(user_input: str):
     workflow.add_node("model", call_model)
     workflow.add_edge(START, "model")
     memory = MemorySaver()
-    langgraph_app = workflow.compile(checkpointer=memory)
+    llm = workflow.compile(checkpointer=memory)
 
     inputs = {"messages": [HumanMessage(content=user_input)]}
-    for output in langgraph_app.stream(inputs):
+    for output in llm.stream(inputs):
         for key, value in output.items():
             if key == "model":
                 return value["messages"][0].content
-    return None
+    return None,llm
