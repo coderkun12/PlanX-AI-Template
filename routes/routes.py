@@ -1,8 +1,9 @@
 from flask import Blueprint, request, jsonify, send_from_directory, session
-from controller.user_functions import signup_logic, login_logic, check_auth_logic
+from controller.user_controller import signup_logic, login_logic, generate_message,check_auth_logic
 import os
 from services.database_service import db_cursor,db_connection
 import secrets
+import jwt
 
 routes_bp = Blueprint('routes', __name__)
 
@@ -38,3 +39,8 @@ def check_auth():
     if status_code != 200:
         session.pop('jwt_token', None)
     return jsonify(result), status_code
+
+@routes_bp.route("/api/sessions/<session_id/messages",methods=["POST"])
+def send_message():
+    qa=generate_message(JWT_SECRET)
+    return qa 
