@@ -1,28 +1,13 @@
 from flask import Blueprint, request, jsonify, send_from_directory, session
 from controller.user_functions import signup_logic, login_logic, check_auth_logic
 import os
-import mysql.connector
-from config.connection import DATABASE_CONFIG  # Import database config
+from services.database_service import db_cursor,db_connection
 import secrets
 
 routes_bp = Blueprint('routes', __name__)
 
 #JWT_SECRET = os.environ.get("JWT_SECRET_KEY")
 JWT_SECRET = secrets.token_hex(32)
-# Database Connection
-try:
-    db_connection = mysql.connector.connect(
-        host=DATABASE_CONFIG["host"],
-        user=DATABASE_CONFIG["user"],
-        password=DATABASE_CONFIG["password"],
-        database=DATABASE_CONFIG["database"]
-    )
-    db_cursor = db_connection.cursor(dictionary=True) # dictionary to get the result as a dict
-    print("MySQL connection successful")
-except Exception as e:
-    print(f"MySQL connection error: {e}")
-    db_connection = None
-    db_cursor = None
 
 @routes_bp.route('/')
 def serve():
