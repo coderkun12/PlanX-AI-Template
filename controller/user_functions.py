@@ -29,8 +29,8 @@ def signup_logic(db_cursor, data):
             return {"error": "Email already registered"}, 409
 
         hashed_password = generate_password_hash(password)
-        insert_user_query = "INSERT INTO Users (email, password, CreatedAt) VALUES (%s, %s, %s)"
-        db_cursor.execute(insert_user_query, (email, hashed_password, datetime.utcnow()))
+        insert_user_query = "INSERT INTO users (email, password_hash) VALUES (%s, %s)"
+        db_cursor.execute(insert_user_query, (email, hashed_password))
 
         return {"message": "User registered successfully"}, 201
 
@@ -56,7 +56,7 @@ def login_logic(db_cursor, data, jwt_secret):
         if not user:
             return {"verified": False, "error": "User not found."}, 401
 
-        if not check_password_hash(user['password'], password):
+        if not check_password_hash(user['password_hash'], password):
             return {"verified": False, "error": "Invalid password"}, 401
 
         expiration_time = datetime.utcnow() + timedelta(days=1)
@@ -72,14 +72,13 @@ def login_logic(db_cursor, data, jwt_secret):
             "token": jwt_token,
             "user": {
                 "email": user["email"],
-                "created_at": user['CreatedAt']
+                "created_at": user['created_at']
             }
         }, 200
 
     except Exception as e:
         return {"verified": False, "error": str(e)}, 500
 
-#import jwt
 
 def check_auth_logic(db_cursor, token, jwt_secret):
     if db_cursor is None:
