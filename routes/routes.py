@@ -3,11 +3,12 @@ from controller.user_functions import signup_logic, login_logic, check_auth_logi
 import os
 import mysql.connector
 from config.connection import DATABASE_CONFIG  # Import database config
+import secrets
 
 routes_bp = Blueprint('routes', __name__)
 
-JWT_SECRET = os.environ.get("JWT_SECRET_KEY")
-
+#JWT_SECRET = os.environ.get("JWT_SECRET_KEY")
+JWT_SECRET = secrets.token_hex(32)
 # Database Connection
 try:
     db_connection = mysql.connector.connect(
