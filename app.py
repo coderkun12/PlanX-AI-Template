@@ -1,25 +1,35 @@
 """"
+                                     RIGHT NOW THE PROGRAM ATLEAST FLASK IS BASED ON MONGODB 
 ---------- Flask Routes for Login and Signup ----------
 """
 
 from flask import Flask, render_template, request, jsonify, send_from_directory,session,url_for
 import re
-from datetime import datetime
+from datetime import datetime,timedelta
 from werkzeug.security import generate_password_hash, check_password_hash
+import jwt
+import secrets
+import random
 
 users_collection=[] #In reality it would be the 'user' list fetched from the database.
 
+random.seed(42)
 app=Flask(__name__)
+app.secret_key=secrets.token_hex(32)
+JWT_SECRET=secrets.token_hex(32)
 
 @app.route('/')
 def serve():
-    if 'user_email' not in session:
+    if 'jwt_token' not in session:
         return send_from_directory(app.static_folder,"index.html")
     return send_from_directory(app.static_folder,"index.html")
 
 #   API for Signup
 @app.route('/api/signup',methods=['POST'])
 def signup():
+    if users_collection is None:
+        return jsonify({"error":"Database not available"}),500
+    
     data=request.get_json()
     if not data or not data.get('email') or not data.get('password'):
         return jsonify({"error":"Email and password are required"}),400
@@ -52,9 +62,13 @@ def signup():
 # API to handle user login
 @app.route("/api/login",methods=["POST"])
 def login():
+    if users_collection is None:
+        return jsonify({"error":"Database not available"}),500
+    
     data=request.get_json()
     if not data or not data.get('email') or not data.get('password'):
         return jsonify({"error":"Email and password are required."}),400
+    
     email=data['email']
     password=data['password']
 
@@ -67,7 +81,14 @@ def login():
         if not check_password_hash(user['password'],password):
             return jsonify({"verified":False,"error":"Invalid password"}),401
         
-        session['user_email']=email
+        expiration_time=datetime.utcnow()+timedelta(days=1)
+        payload={
+            "email":user["email"],
+            "exp":expiration_time
+        }
+        jwt_token=jwt.encode(payload,JWT_SECRET,algorithm="HS256")
+        session['jwt_token']=jwt_token
+
         return jsonify({
             "verified":True,
             "message":"Login Sucessful",
@@ -82,16 +103,28 @@ def login():
 # API route to authenticate the user. 
 @app.route("/api/check-auth",methods=["GET"])
 def check_auth():
-    user_email=session.get('user_email')
-    if not user_email:
+    if users_collection is None:
+        return jsonify({"error":"Database not available"}),500
+    token=session.get('jwt_token')
+    if not token:
         return jsonify({"authenticated":"False","error":"User not authenticated"}),401
-    user=users_collection.find_one({"email":user_email})
-    if user:
-        return jsonify({"authenticated":True,"email":user_email}),200
-    else:
-        session.pop('user_email',None)
-        return jsonify({"authenticated":False,"error":"User not found."}), 401
-
+    
+    try:
+        payload=jwt.decode(token,JWT_SECRET,algorithms=["HS256"])
+        user_email=payload["email"]
+        user=users_collection.find_one({"email":user_email})
+        if user:
+            return jsonify({"authenticated":True,"email":user_email}),200
+        else:
+            session.pop('jwt_token',None)
+            return jsonify({"authenticated":False,"error":"User not found."}),401
+        
+    except jwt.ExpiredSignatureError:
+        session.pop('jwt_token',None)
+        return jsonify({"authenticated":False,"error":"Token expired"}),401
+    except jwt.InvalidTokenError:
+        session.pop('jwt_token',None)
+        return jsonify({"auhenticated":False,"error":"Invalid token"}),401
 
 
 """
