@@ -7,7 +7,10 @@ import jwt
 from services.lllm_service import  run_langgraph
 import datetime
 import uuid
+from sqlalchemy.exc import IntegrityError, NoResultFound
 import jwt
+from services.database_service import session
+from models.schema import User
 from flask import request
 
 def save_message(session_id, message, sender,user_email): # added user_email
@@ -44,10 +47,7 @@ def generate_bot_response(session_id, user_input):
 
     return formatted_answer
 
-def signup_logic(db_cursor, data):
-    if db_cursor is None:
-        return {"error": "Database not available"}, 500
-
+def signup_logic(data):
     if not data or not data.get('email') or not data.get('password'):
         return {"error": "Email and password are required"}, 400
 
@@ -62,27 +62,27 @@ def signup_logic(db_cursor, data):
         return {"error": "Password must be at least 8 characters long"}, 400
 
     try:
-        existing_user_query = "SELECT * FROM Users WHERE email = %s"
-        db_cursor.execute(existing_user_query, (email,))
-        existing_user = db_cursor.fetchone()
+        existing_user= session.query(User).filter_by(email=email).first()
 
         if existing_user:
             return {"error": "Email already registered"}, 409
 
         hashed_password = generate_password_hash(password)
-        insert_user_query = "INSERT INTO users (email, password_hash) VALUES (%s, %s)"
-        db_cursor.execute(insert_user_query, (email, hashed_password))
+        new_user=User(email=email,password_hash=hashed_password)
+        session.add(new_user)
+        session.commit()
 
         return {"message": "User registered successfully"}, 201
 
+    except IntegrityError:
+        session.rollback()
+        return {"error":"Email already registered."}, 500
     except Exception as e:
-        return {"error": str(e)}, 500
+        session.rollback()
+        return {"error":str(e)},500
 
 
-def login_logic(db_cursor, data, jwt_secret):
-    if db_cursor is None:
-        return {"error": "Database not available"}, 500
-
+def login_logic(data, jwt_secret):
     if not data or not data.get('email') or not data.get('password'):
         return {"error": "Email and password are required."}, 400
 
@@ -90,19 +90,17 @@ def login_logic(db_cursor, data, jwt_secret):
     password = data['password']
 
     try:
-        user_query = "SELECT * FROM Users WHERE email = %s"
-        db_cursor.execute(user_query, (email,))
-        user = db_cursor.fetchone()
+        user=session.query(User).filter_by(email=email).first()
 
         if not user:
             return {"verified": False, "error": "User not found."}, 401
 
-        if not check_password_hash(user['password_hash'], password):
+        if not check_password_hash(user.password_hash, password):
             return {"verified": False, "error": "Invalid password"}, 401
 
         expiration_time = datetime.utcnow() + timedelta(days=1)
         payload = {
-            "email": user["email"],
+            "email": user.email,
             "exp": expiration_time
         }
         jwt_token = jwt.encode(payload, jwt_secret, algorithm="HS256")
@@ -112,8 +110,8 @@ def login_logic(db_cursor, data, jwt_secret):
             "message": "Login Successful",
             "token": jwt_token,
             "user": {
-                "email": user["email"],
-                "created_at": user['created_at']
+                "email": user.email,
+                "created_at": user.created_at
             }
         }, 200
 
@@ -121,10 +119,7 @@ def login_logic(db_cursor, data, jwt_secret):
         return {"verified": False, "error": str(e)}, 500
 
 
-def check_auth_logic(db_cursor, token, jwt_secret):
-    if db_cursor is None:
-        return {"error": "Database not available"}, 500
-
+def check_auth_logic(token, jwt_secret):
     if not token:
         return {"authenticated": "False", "error": "User not authenticated"}, 401
 
@@ -132,9 +127,7 @@ def check_auth_logic(db_cursor, token, jwt_secret):
         payload = jwt.decode(token, jwt_secret, algorithms=["HS256"])
         user_email = payload["email"]
 
-        user_query = "SELECT * FROM Users WHERE email = %s"
-        db_cursor.execute(user_query, (user_email,))
-        user = db_cursor.fetchone()
+        user=session.query(User).filter_by(email=user_email).one()
 
         if user:
             return {"authenticated": True, "email": user_email}, 200
@@ -145,6 +138,10 @@ def check_auth_logic(db_cursor, token, jwt_secret):
         return {"authenticated": False, "error": "Token expired"}, 401
     except jwt.InvalidTokenError:
         return {"authenticated": False, "error": "Invalid token"}, 401
+    except NoResultFound:
+        return {"authenticated":False,"error":"User not found."}, 401
+    except Exception as e:
+        return {"authenticated":False,"error":str(e)},500 
     
 
 
