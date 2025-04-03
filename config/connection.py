@@ -1,4 +1,4 @@
-# MySQL Connection
+# mysql connection.
 DATABASE_CONFIG = {
     "host": "your_db_host",
     "user": "your_db_user",
