@@ -4,10 +4,10 @@ import os
 import secrets
 import jwt
 
-routes_bp = Blueprint('routes', __name__) # integrates a modular set of routes and resources (a Blueprint) into a Flask application.
+routes_bp = Blueprint('routes', __name__) # integrates a modular set of routes and resources (a blueprint) into a flask application.
 
 #JWT_SECRET = os.environ.get("JWT_SECRET_KEY")
-JWT_SECRET = secrets.token_hex(32) # generate a secret key for the JWT tokens.
+JWT_SECRET = secrets.token_hex(32) # generate a secret key for the jwt tokens.
 
 @routes_bp.route('/')
 def serve():
@@ -26,7 +26,7 @@ def login():
     data = request.get_json()
     result, status_code = login_logic(data, JWT_SECRET) 
     if status_code == 200:
-        session['jwt_token'] = result['token'] # stores the JWT token ID in session.
+        session['jwt_token'] = result['token'] # stores the jwt token ID in session.
     return jsonify(result), status_code
 
 @routes_bp.route('/api/check-auth', methods=['GET']) # api to verify the user before starting the actual process.
