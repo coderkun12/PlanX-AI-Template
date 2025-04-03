@@ -4,10 +4,10 @@ import os
 import secrets
 import jwt
 
-routes_bp = Blueprint('routes', __name__)
+routes_bp = Blueprint('routes', __name__) # integrates a modular set of routes and resources (a Blueprint) into a Flask application.
 
 #JWT_SECRET = os.environ.get("JWT_SECRET_KEY")
-JWT_SECRET = secrets.token_hex(32)
+JWT_SECRET = secrets.token_hex(32) # generate a secret key for the JWT tokens.
 
 @routes_bp.route('/')
 def serve():
@@ -15,26 +15,26 @@ def serve():
         return send_from_directory("static", "index.html")
     return send_from_directory("static", "index.html")
 
-@routes_bp.route('/api/signup', methods=['POST'])
+@routes_bp.route('/api/signup', methods=['POST']) # api for sign-up. 
 def signup():
     data = request.get_json()
-    result, status_code = signup_logic(data) # pass the cursor
+    result, status_code = signup_logic(data)
     return jsonify(result), status_code
 
-@routes_bp.route('/api/login', methods=['POST'])
+@routes_bp.route('/api/login', methods=['POST']) #api for log in.
 def login():
     data = request.get_json()
-    result, status_code = login_logic(data, JWT_SECRET) #pass the cursor
+    result, status_code = login_logic(data, JWT_SECRET) 
     if status_code == 200:
-        session['jwt_token'] = result['token']
+        session['jwt_token'] = result['token'] # stores the JWT token ID in session.
     return jsonify(result), status_code
 
-@routes_bp.route('/api/check-auth', methods=['GET'])
+@routes_bp.route('/api/check-auth', methods=['GET']) # api to verify the user before starting the actual process.
 def check_auth():
     token = session.get('jwt_token')
-    result, status_code = check_auth_logic(token, JWT_SECRET) #pass the cursor
+    result, status_code = check_auth_logic(token, JWT_SECRET)
     if status_code != 200:
-        session.pop('jwt_token', None)
+        session.pop('jwt_token', None) # if authentication fails, remove the token.
     return jsonify(result), status_code
 
 @routes_bp.route("/api/sessions/<session_id>/messages",methods=["POST"])
