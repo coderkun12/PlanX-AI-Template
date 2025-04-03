@@ -1,8 +1,4 @@
-"""
----------- MySQL Connection ----------
-"""
-# config/database.py
-
+# MySQL Connection
 DATABASE_CONFIG = {
     "host": "your_db_host",
     "user": "your_db_user",
